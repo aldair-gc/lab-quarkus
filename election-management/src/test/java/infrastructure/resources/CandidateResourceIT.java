@@ -1,9 +1,8 @@
-package domain;
+package infrastructure.resources;
 
 import api.dto.in.CreateCandidate;
 import api.dto.in.UpdateCandidate;
 import api.dto.out.Candidate;
-import infrastructure.resources.CandidateResource;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 import org.instancio.Instancio;
@@ -11,7 +10,6 @@ import org.jboss.resteasy.reactive.RestResponse;
 import org.junit.jupiter.api.Test;
 
 import javax.ws.rs.core.MediaType;
-
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;

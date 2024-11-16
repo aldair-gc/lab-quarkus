@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import javax.inject.Inject;
-
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,11 +67,11 @@ class CandidateApiTest {
     void list() {
         var candidates = Instancio.stream(Candidate.class).limit(10).toList();
 
-        when(candidateService.findAll()).thenReturn(candidates);
+        when(candidateService.findAll(0, 10)).thenReturn(candidates);
 
-        var response = candidateApi.list();
+        var response = candidateApi.list(0, 10);
 
-        verify(candidateService).findAll();
+        verify(candidateService).findAll(0, 10);
         verifyNoMoreInteractions(candidateService);
 
         assertEquals(candidates.stream().map(api.dto.out.Candidate::fromDomain).toList(), response);

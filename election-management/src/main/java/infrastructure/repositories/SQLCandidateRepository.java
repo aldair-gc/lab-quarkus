@@ -46,6 +46,11 @@ public class SQLCandidateRepository implements CandidateRepository {
                 .toList();
     }
 
+    @Override
+    public void delete(String id) {
+        entityManager.remove(entityManager.find(infrastructure.repositories.entities.Candidate.class, id));
+    }
+
     private Predicate[] conditions(
             CandidateQuery query,
             CriteriaBuilder cb,

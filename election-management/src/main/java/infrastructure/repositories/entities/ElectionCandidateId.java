@@ -6,10 +6,8 @@ import java.io.Serializable;
 
 @Embeddable
 public class ElectionCandidateId implements Serializable {
-
     @Column(name = "election_id")
     private String electionId;
-
     @Column(name = "candidate_id")
     private String candidateId;
 

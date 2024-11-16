@@ -16,6 +16,7 @@ import java.util.List;
 public class RedisElectionRepository implements ElectionRepository {
 
     private static final Logger LOGGER = Logger.getLogger(RedisElectionRepository.class);
+    private static final String KEY = "election:";
     private final SortedSetCommands<String, String> sortedSetCommands;
     private final KeyCommands<String> keyCommands;
 
@@ -25,12 +26,20 @@ public class RedisElectionRepository implements ElectionRepository {
     }
 
     @Override
+    public List<Election> findAll() {
+        LOGGER.info("Retrieving all elections from redis");
+        return keyCommands.keys(KEY + "*").stream()
+                .map(id -> findById(id.replace(KEY, "")))
+                .toList();
+    }
+
+    @Override
     @CacheResult(cacheName = "memoization")
     public Election findById(String id) {
         LOGGER.info("Retrieving election " + id + " from Redis");
 
         List<Candidate> candidates = sortedSetCommands
-                .zrange("election:" + id, 0, -1)
+                .zrange(KEY + id, 0, -1)
                 .stream()
                 .map(Candidate::new)
                 .toList();
@@ -39,11 +48,8 @@ public class RedisElectionRepository implements ElectionRepository {
     }
 
     @Override
-    public List<Election> findAll() {
-        LOGGER.info("Retrieving all elections from Redis");
-        return keyCommands.keys("election:*")
-                .stream()
-                .map(id -> findById(id.replace("elections:", "")))
-                .toList();
+    public void vote(String electionId, Candidate candidate) {
+        LOGGER.info("Voting for " + candidate.id());
+        sortedSetCommands.zincrby(KEY + electionId, 1, candidate.id());
     }
 }

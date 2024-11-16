@@ -6,7 +6,6 @@ import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
-
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -36,11 +35,11 @@ class CandidateServiceTest {
     void findAll() {
         List<Candidate> candidates = Instancio.stream(Candidate.class).limit(10).toList();
 
-        when(repository.findAll()).thenReturn(candidates);
+        when(repository.findAll(0, 10)).thenReturn(candidates);
 
-        List<Candidate> result = service.findAll();
+        List<Candidate> result = service.findAll(0, 10);
 
-        verify(repository).findAll();
+        verify(repository).findAll(0, 10);
         verifyNoMoreInteractions(repository);
 
         assertEquals(candidates, result);

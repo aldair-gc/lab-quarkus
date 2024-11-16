@@ -21,15 +21,17 @@ public class CandidateApi {
 
     public api.dto.out.Candidate update(String id, api.dto.in.UpdateCandidate dto) {
         service.save(dto.toDomain(id));
-
         Candidate candidate = service.findById(id);
-
         return api.dto.out.Candidate.fromDomain(candidate);
     }
 
-    public List<api.dto.out.Candidate> list() {
-        List<Candidate> candidates = service.findAll();
-
+    public List<api.dto.out.Candidate> list(int page, int size) {
+        List<Candidate> candidates = service.findAll(page, size);
         return candidates.stream().map(api.dto.out.Candidate::fromDomain).toList();
     }
+
+    public void delete(String id) {
+        service.delete(id);
+    }
+
 }

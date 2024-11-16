@@ -1,4 +1,3 @@
-version: '3.9'
 services:
 
   # REVERSE PROXY
@@ -31,11 +30,13 @@ services:
     environment:
       - QUARKUS_DATASOURCE_USERNAME=election-management-user
       - QUARKUS_DATASOURCE_PASSWORD=election-management-password
-      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:otel:mariadb://database:3306/election-management;;
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:otel:mariadb://database:3306/election-management
       - QUARKUS_REDIS_HOSTS=redis://caching:6379
     labels:
       - traefik.http.routers.election-management.rule=Host(`vote.dio.localhost`) && PathPrefix(`/api`)
       - traefik.http.routers.election-management.entrypoints=web
+    ports:
+      - "8081:8080"
 
   voting-app:
     extends:
@@ -46,6 +47,8 @@ services:
       # dockerfile: src/main/docker/Dockerfile.native
       dockerfile: src/main/docker/Dockerfile.jvm
     image: dio/voting-app:${TAG:-1.0.0}
+    environment:
+      - QUARKUS_REDIS_HOSTS=redis://caching:6379
     labels:
       - traefik.http.routers.voting-app.rule=Host(`vote.dio.localhost`) && PathPrefix(`/api/voting`)
       - traefik.http.routers.voting-app.entrypoints=web
@@ -59,9 +62,13 @@ services:
       # dockerfile: src/main/docker/Dockerfile.native
       dockerfile: src/main/docker/Dockerfile.jvm
     image: dio/result-app:${TAG:-1.0.0}
+    environment:
+      - QUARKUS_REST_CLIENT_ELECTION_MANAGEMENT_URL=http://election-management:8080
     labels:
+      - traefik.http.middlewares.headers.headers.accesscontrolalloworiginlist=*
       - traefik.http.routers.result-app.rule=Host(`vote.dio.localhost`) && Path(`/`)
       - traefik.http.routers.result-app.entrypoints=web
+      - traefik.http.routers.result-app.middlewares=headers
 
   # DATABASE - https://quarkus.io/guides/datasource
 
@@ -136,3 +143,36 @@ services:
       - traefik.http.routers.jaeger.service=jaeger
       - traefik.http.routers.jaeger.middlewares=admin-admin-auth@docker
       - traefik.http.services.jaeger.loadbalancer.server.port=16686
+
+  ## GRAFANA - https://grafana.com/
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+        - "3000:3000"
+    environment:
+        - GF_SECURITY_ADMIN_USER=admin
+        - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+#    volumes:
+#      - grafana-storage:/var/lib/grafana
+    labels:
+        - traefik.enable=true
+        - traefik.http.routers.grafana.rule=Host(`monitoring.private.dio.localhost`)
+        - traefik.http.routers.grafana.entrypoints=web
+        - traefik.http.services.grafana.loadbalancer.server.port=3000
+
+  ## PROMETHEUS - https://prometheus.io/
+  prometheus:
+      image: prom/prometheus:latest
+      ports:
+          - "9090:9090"
+      volumes:
+          - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      command:
+          - --config.file=/etc/prometheus/prometheus.yml
+      labels:
+          - traefik.enable=true
+          - traefik.http.routers.prometheus.rule=Host(`prometheus.private.dio.localhost`)
+          - traefik.http.routers.prometheus.entrypoints=web
+          - traefik.http.services.prometheus.loadbalancer.server.port=9090

@@ -12,7 +12,6 @@ import org.jboss.resteasy.reactive.RestResponse;
 import org.junit.jupiter.api.Test;
 
 import javax.ws.rs.core.MediaType;
-
 import java.util.Arrays;
 
 import static io.restassured.RestAssured.given;
@@ -40,16 +39,19 @@ class CandidateResourceTest {
 
     @Test
     void update() {
-        domain.Candidate candidate = Instancio.create(domain.Candidate.class);
         var in = Instancio.create(UpdateCandidate.class);
+        var out = Instancio.create(Candidate.class);
 
-    given()
-            .contentType(MediaType.APPLICATION_JSON).body(in)
-        .when().put("/{id}", candidate.id())
-        .then().statusCode(RestResponse.StatusCode.OK);
+        when(api.update(out.id(), in)).thenReturn(out);
 
-       verify(api).update(candidate.id(), in);
+    var response = given().contentType(MediaType.APPLICATION_JSON).body(in)
+        .when().put("/" + out.id())
+        .then().statusCode(RestResponse.StatusCode.OK).extract().as(Candidate.class);
+
+       verify(api).update(out.id(), in);
        verifyNoMoreInteractions(api);
+
+       assertEquals(out, response);
     }
 
 
@@ -57,14 +59,14 @@ class CandidateResourceTest {
     void list() {
         var out = Instancio.stream(Candidate.class).limit(4).toList();
 
-        when(api.list()).thenReturn(out);
+        when(api.list(0, 10)).thenReturn(out);
 
         var response = given()
             .when().get()
             .then().statusCode(RestResponse.StatusCode.OK)
                 .extract().as(Candidate[].class);
 
-        verify(api).list();
+        verify(api).list(0, 10);
         verifyNoMoreInteractions(api);
 
         assertEquals(out, Arrays.stream(response).toList());

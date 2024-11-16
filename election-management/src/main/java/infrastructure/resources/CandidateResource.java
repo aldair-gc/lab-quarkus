@@ -4,6 +4,7 @@ import api.CandidateApi;
 import api.dto.in.CreateCandidate;
 import api.dto.in.UpdateCandidate;
 import api.dto.out.Candidate;
+import io.quarkus.micrometer.runtime.MicrometerCounted;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import org.jboss.resteasy.reactive.RestResponse;
 
@@ -26,6 +27,7 @@ public class CandidateResource {
     @POST
     @ResponseStatus(RestResponse.StatusCode.CREATED)
     @Transactional
+    @MicrometerCounted(value = "candidates.created")
     public void create(CreateCandidate dto) {
         api.create(dto);
     }
@@ -34,13 +36,27 @@ public class CandidateResource {
     @Path("/{id}")
     @ResponseStatus(RestResponse.StatusCode.OK)
     @Transactional
+    @MicrometerCounted(value = "candidates.updated")
     public Candidate update(@PathParam("id") String id, UpdateCandidate dto) {
         return api.update(id, dto);
     }
 
     @GET
     @ResponseStatus(RestResponse.StatusCode.OK)
-    public List<Candidate> list() {
-        return api.list();
+    @MicrometerCounted(value = "candidates.listed")
+    public List<Candidate> list(
+            @QueryParam("page") @DefaultValue("0") int page,
+            @QueryParam("size") @DefaultValue("10") int size
+    ) {
+        return api.list(page, size);
+    }
+
+    @DELETE
+    @Path("/{id}")
+    @ResponseStatus(RestResponse.StatusCode.OK)
+    @Transactional
+    @MicrometerCounted(value = "candidates.deleted")
+    public void delete(@PathParam("id") String id) {
+        api.delete(id);
     }
 }

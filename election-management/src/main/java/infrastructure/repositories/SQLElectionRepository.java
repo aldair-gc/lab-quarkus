@@ -1,12 +1,22 @@
 package infrastructure.repositories;
 
+import domain.Candidate;
 import domain.Election;
 import domain.ElectionRepository;
+import domain.annotations.Principal;
 import infrastructure.repositories.entities.ElectionCandidate;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.persistence.EntityManager;
+import javax.transaction.Transactional;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.groupingBy;
+
+@Principal
 @ApplicationScoped
 public class SQLElectionRepository implements ElectionRepository {
 
@@ -28,6 +38,64 @@ public class SQLElectionRepository implements ElectionRepository {
                 .stream()
                 .map(entry ->
                 ElectionCandidate.fromDomain(election, entry.getKey(), entry.getValue()))
+                .forEach(entityManager::merge);
+    }
+
+    @Override
+    public List<Election> findAll(int offset, int limit) {
+        Stream<Object[]> stream = entityManager
+                .createNativeQuery(
+                        "SELECT " +
+                                "e.id AS election_id, " +
+                                "c.id AS candidate_id, " +
+                                "c.photo, " +
+                                "c.given_name, " +
+                                "c.family_name, " +
+                                "c.email, " +
+                                "c.phone, " +
+                                "c.job_title, " +
+                                "ec.votes " +
+                                "FROM elections AS e " +
+                                "INNER JOIN election_candidate AS ec ON ec.election_id = e.id " +
+                                "INNER JOIN candidates AS c ON c.id = ec.candidate_id"
+                )
+                .setFirstResult(offset)
+                .setMaxResults(limit)
+                .getResultStream();
+
+        Map<String, List<Object[]>> map = stream.collect(groupingBy(o-> (String) o[0]));
+
+        return map.entrySet().stream()
+                .map(entry -> {
+                    Map.Entry<Candidate, Integer>[] candidates = entry.getValue().stream()
+                            .map(row -> Map.entry(new Candidate((String)row[1],
+                                    Optional.ofNullable((String)row[2]),
+                                    (String)row[3],
+                                    (String)row[4],
+                                    (String)row[5],
+                                    Optional.ofNullable((String)row[6]),
+                                    Optional.ofNullable((String)row[7])),
+                                    (Integer)row[8]))
+                            .toArray(Map.Entry[]::new);
+                    return new Election(entry.getKey(), Map.ofEntries(candidates));
+                })
+                .toList();
+    }
+
+    @Override
+    public void delete(String id) {
+        entityManager.remove(
+                entityManager.find(infrastructure.repositories.entities.Election.class, id)
+        );
+    }
+
+    @Transactional
+    public void sync(Election election) {
+        election.votes()
+                .entrySet()
+                .stream()
+                .map(entry ->
+                        ElectionCandidate.fromDomain(election, entry.getKey(), entry.getValue()))
                 .forEach(entityManager::merge);
     }
 }

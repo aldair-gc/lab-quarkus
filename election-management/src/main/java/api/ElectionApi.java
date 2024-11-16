@@ -1,6 +1,7 @@
-package domain;
+package api;
 
 import api.dto.out.Election;
+import domain.ElectionService;
 
 import javax.enterprise.context.ApplicationScoped;
 import java.util.List;
@@ -23,5 +24,9 @@ public class ElectionApi {
                 .stream()
                 .map(Election::fromDomain)
                 .toList();
+    }
+
+    public void delete(String id) {
+        service.delete(id);
     }
 }

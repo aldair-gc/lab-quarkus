@@ -1,15 +1,15 @@
 package infrastructure.resources;
 
-import domain.ElectionApi;
+import api.dto.out.Election;
+import api.ElectionApi;
+import io.quarkus.micrometer.runtime.MicrometerCounted;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import org.jboss.resteasy.reactive.RestResponse;
 
 import javax.transaction.Transactional;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
+import java.util.List;
 
 @Path("/api/elections")
 @Consumes(MediaType.APPLICATION_JSON)
@@ -25,8 +25,24 @@ public class ElectionResource {
     @POST
     @ResponseStatus(RestResponse.StatusCode.CREATED)
     @Transactional
+    @MicrometerCounted(value = "elections.created")
     public void submit() {
         api.submit();
     }
 
+    @GET
+    @ResponseStatus(RestResponse.StatusCode.OK)
+    @MicrometerCounted(value = "elections.listed")
+    public List<Election> list() {
+        return api.findAll();
+    }
+
+    @DELETE
+    @Path("/{id}")
+    @ResponseStatus(RestResponse.StatusCode.OK)
+    @Transactional
+    @MicrometerCounted(value = "elections.deleted")
+    public void delete(@PathParam("id") String id) {
+        api.delete(id);
+    }
 }

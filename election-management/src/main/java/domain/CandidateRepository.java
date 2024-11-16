@@ -14,7 +14,7 @@ public interface CandidateRepository {
 
     List<Candidate> find(CandidateQuery query);
 
-    default List<Candidate> findAll() {
+    default List<Candidate> findAll(int offset, int size) {
         return find(new CandidateQuery.Builder().build());
     }
 
@@ -22,4 +22,6 @@ public interface CandidateRepository {
         CandidateQuery query = new CandidateQuery.Builder().ids(Set.of(id)).build();
         return find(query).stream().findFirst();
     }
+
+    void delete(String id);
 }
