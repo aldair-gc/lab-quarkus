@@ -2,7 +2,6 @@ package domain;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 public interface CandidateRepository {
 
@@ -14,14 +13,12 @@ public interface CandidateRepository {
 
     List<Candidate> find(CandidateQuery query);
 
-    default List<Candidate> findAll(int offset, int size) {
-        return find(new CandidateQuery.Builder().build());
-    }
+    List<Candidate> findAll();
 
-    default Optional<Candidate> findById(String id) {
-        CandidateQuery query = new CandidateQuery.Builder().ids(Set.of(id)).build();
-        return find(query).stream().findFirst();
-    }
+    List<Candidate> findAll(int offset, int size);
+
+    Optional<Candidate> findById(String id);
 
     void delete(String id);
+
 }

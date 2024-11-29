@@ -13,11 +13,9 @@ public class ElectionService {
     private final Instance<ElectionRepository> repositories;
     private final ElectionRepository repository;
 
-    public ElectionService(
-            CandidateService candidateService,
-            @Any Instance<ElectionRepository> repositories,
-            @Principal ElectionRepository repository
-            ) {
+    public ElectionService(CandidateService candidateService,
+                           @Any Instance<ElectionRepository> repositories,
+                           @Principal ElectionRepository repository) {
         this.candidateService = candidateService;
         this.repositories = repositories;
         this.repository = repository;

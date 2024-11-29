@@ -1,101 +1,109 @@
 package infrastructure.repositories;
 
-import domain.Candidate;
-import domain.Election;
 import domain.ElectionRepository;
 import domain.annotations.Principal;
+import infrastructure.repositories.entities.Election;
 import infrastructure.repositories.entities.ElectionCandidate;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.persistence.EntityManager;
 import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.groupingBy;
 
 @Principal
 @ApplicationScoped
 public class SQLElectionRepository implements ElectionRepository {
 
-    private final EntityManager entityManager;
-
-    public SQLElectionRepository(EntityManager entityManager) {
-        this.entityManager = entityManager;
-    }
-
     @Override
-    public void submit(Election election) {
-        infrastructure.repositories.entities.Election entity = infrastructure
-                .repositories.entities.Election.fromDomain(election);
+    @Transactional
+    public void submit(domain.Election election) {
+        Election entity = Election.fromDomain(election);
 
-        entityManager.merge(entity);
+        entity.persist();
 
-        election.votes()
+        election
+                .votes()
                 .entrySet()
                 .stream()
-                .map(entry ->
-                ElectionCandidate.fromDomain(election, entry.getKey(), entry.getValue()))
-                .forEach(entityManager::merge);
+                .map(entry -> ElectionCandidate
+                        .fromDomain(election, entry.getKey(), entry.getValue()))
+                .forEach(Election::persist);
     }
 
     @Override
-    public List<Election> findAll(int offset, int limit) {
-        Stream<Object[]> stream = entityManager
-                .createNativeQuery(
-                        "SELECT " +
-                                "e.id AS election_id, " +
-                                "c.id AS candidate_id, " +
-                                "c.photo, " +
-                                "c.given_name, " +
-                                "c.family_name, " +
-                                "c.email, " +
-                                "c.phone, " +
-                                "c.job_title, " +
-                                "ec.votes " +
-                                "FROM elections AS e " +
-                                "INNER JOIN election_candidate AS ec ON ec.election_id = e.id " +
-                                "INNER JOIN candidates AS c ON c.id = ec.candidate_id"
+    public List<domain.Election> findAll() {
+        return List.of();
+    }
+
+    @RegisterForReflection
+    public static class ElectionCandidateResult {
+        public String election_id;
+        public String candidate_id;
+        public String photo;
+        public String given_name;
+        public String family_name;
+        public String email;
+        public String phone;
+        public String job_title;
+        public Integer votes;
+    }
+
+    @Override
+    public List<domain.Election> findAll(int offset, int limit) {
+        String electionQuery = "SELECT " + "e.id AS election_id, "
+                + "c.id AS candidate_id, " + "c.photo, " + "c.given_name, "
+                + "c.family_name, " + "c.email, " + "c.phone, " + "c.job_title, "
+                + "ec.votes " + "FROM elections AS e "
+                + "INNER JOIN election_candidate AS ec ON ec.election_id = e.id "
+                + "INNER JOIN candidates AS c ON c.id = ec.candidate_id";
+
+        int page = offset / limit;
+
+        Stream<ElectionCandidateResult> stream = ElectionCandidate
+                .find(electionQuery)
+                .page(page, limit)
+                .project(ElectionCandidateResult.class)
+                .stream();
+
+        Map<String, List<ElectionCandidateResult>> grouped = stream
+                .collect(Collectors.groupingBy(ecr -> ecr.election_id));
+
+        return grouped
+                .entrySet()
+                .stream()
+                .map(group -> Map.entry(
+                                group.getKey(),
+                                group.getValue()
+                                        .stream()
+                                        .map(electionCandidate -> Map.entry(
+                                                new domain.Candidate(
+                                                        electionCandidate.candidate_id,
+                                                        Optional.ofNullable(electionCandidate.photo),
+                                                        electionCandidate.given_name,
+                                                        electionCandidate.family_name,
+                                                        electionCandidate.email,
+                                                        Optional.ofNullable(electionCandidate.phone),
+                                                        Optional.ofNullable(electionCandidate.job_title)
+                                                ),
+                                                electionCandidate.votes
+                                        ))
+                        )
                 )
-                .setFirstResult(offset)
-                .setMaxResults(limit)
-                .getResultStream();
-
-        Map<String, List<Object[]>> map = stream.collect(groupingBy(o-> (String) o[0]));
-
-        return map.entrySet().stream()
-                .map(entry -> {
-                    Map.Entry<Candidate, Integer>[] candidates = entry.getValue().stream()
-                            .map(row -> Map.entry(new Candidate((String)row[1],
-                                    Optional.ofNullable((String)row[2]),
-                                    (String)row[3],
-                                    (String)row[4],
-                                    (String)row[5],
-                                    Optional.ofNullable((String)row[6]),
-                                    Optional.ofNullable((String)row[7])),
-                                    (Integer)row[8]))
-                            .toArray(Map.Entry[]::new);
-                    return new Election(entry.getKey(), Map.ofEntries(candidates));
-                })
-                .toList();
+                .map(entry -> new domain.Election(entry.getKey(), entry.getValue().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))))
+                .collect(Collectors.toList());
     }
 
     @Override
     public void delete(String id) {
-        entityManager.remove(
-                entityManager.find(infrastructure.repositories.entities.Election.class, id)
-        );
+        Election.delete("id", id);
     }
 
     @Transactional
-    public void sync(Election election) {
-        election.votes()
-                .entrySet()
-                .stream()
-                .map(entry ->
-                        ElectionCandidate.fromDomain(election, entry.getKey(), entry.getValue()))
-                .forEach(entityManager::merge);
+    public void sync(domain.Election election) {
+        election.votes().entrySet().stream().map(entry -> ElectionCandidate.fromDomain(election, entry.getKey(), entry.getValue())).forEach(Election::persist);
     }
 }

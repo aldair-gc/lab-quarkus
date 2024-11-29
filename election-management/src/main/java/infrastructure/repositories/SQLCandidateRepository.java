@@ -1,68 +1,81 @@
 package infrastructure.repositories;
 
-import domain.Candidate;
 import domain.CandidateQuery;
 import domain.CandidateRepository;
+import infrastructure.repositories.entities.Candidate;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.persistence.EntityManager;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
 import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
+import java.util.Set;
 
 @ApplicationScoped
 public class SQLCandidateRepository implements CandidateRepository {
 
-    private final EntityManager entityManager;
-
-    public SQLCandidateRepository(EntityManager entityManager) {
-        this.entityManager = entityManager;
+    @Override
+    @Transactional
+    public void save(List<domain.Candidate> candidates) {
+        candidates.stream()
+                .map(Candidate::fromDomain)
+                .forEach(c -> Candidate.getEntityManager().merge(c).persist());
     }
 
     @Override
     @Transactional
-    public void save(List<Candidate> candidates) {
-        candidates.stream()
-                .map(infrastructure.repositories.entities.Candidate::fromDomain)
-                .forEach(entityManager::merge);
+    public void save(domain.Candidate candidate) {
+        Candidate entity = Candidate.fromDomain(candidate);
+        Candidate.getEntityManager().merge(entity).persist();
     }
 
     @Override
-    public List<Candidate> find(CandidateQuery query) {
-        var cb = entityManager.getCriteriaBuilder();
-        var cq = cb.createQuery(infrastructure.repositories.entities.Candidate.class);
-        var root = cq.from(infrastructure.repositories.entities.Candidate.class);
-
-        cq.select(root).where(conditions(query, cb, root));
-
-        return entityManager
-                .createQuery(cq)
-                .getResultStream()
-                .map(infrastructure.repositories.entities.Candidate::toDomain)
+    public List<domain.Candidate> find(CandidateQuery query) {
+        return Candidate.getEntityManager()
+                .createQuery(
+                        "select c from candidates c where c.id = ?1 " +
+                                "or lower(c.familyName) like lower(?2) " +
+                                "or lower(c.givenName) like lower(?2)",
+                        Candidate.class
+                )
+                .setParameter(1, query.ids().orElse(Set.of()))
+                .setParameter(2, "%" + query.name().orElse("") + "%")
+                .getResultList()
+                .stream()
+                .map(Candidate::toDomain)
                 .toList();
     }
 
     @Override
-    public void delete(String id) {
-        entityManager.remove(entityManager.find(infrastructure.repositories.entities.Candidate.class, id));
+    public List<domain.Candidate> findAll() {
+        return Candidate.getEntityManager()
+                .createQuery("select c from candidates c", Candidate.class)
+                .getResultList()
+                .stream()
+                .map(Candidate::toDomain)
+                .toList();
     }
 
-    private Predicate[] conditions(
-            CandidateQuery query,
-            CriteriaBuilder cb,
-            Root<infrastructure.repositories.entities.Candidate> root
-    ) {
-        return Stream.of(query.ids().map(id -> cb.in(
-                root.get("id")).value(id)),
-                query.name().map(name -> cb.or(
-                        cb.like(cb.lower(root.get("familyName")), name.toLowerCase() + "%"),
-                        cb.like(cb.lower(root.get("givenName")), name.toLowerCase() + "%")
-                        )))
-                .flatMap(Optional::stream)
-                .toArray(Predicate[]::new);
+    @Override
+    public List<domain.Candidate> findAll(int offset, int size) {
+        int page = (int) Math.floor((double) offset / size);
+        return Candidate
+                .findAll()
+                .page(page, size)
+                .project(Candidate.class)
+                .stream()
+                .map(Candidate::toDomain)
+                .toList();
     }
+
+    @Override
+    public Optional<domain.Candidate> findById(String id) {
+        Candidate candidate = Candidate.getEntityManager().find(Candidate.class, id);
+        return Optional.ofNullable(candidate).map(Candidate::toDomain);
+    }
+
+    @Override
+    public void delete(String id) {
+        Candidate.deleteById(id);
+    }
+
 }

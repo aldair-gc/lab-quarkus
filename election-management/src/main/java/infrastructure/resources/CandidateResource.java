@@ -56,7 +56,8 @@ public class CandidateResource {
     @ResponseStatus(RestResponse.StatusCode.OK)
     @Transactional
     @MicrometerCounted(value = "candidates.deleted")
-    public void delete(@PathParam("id") String id) {
+    public boolean delete(@PathParam("id") String id) {
         api.delete(id);
+        return true;
     }
 }

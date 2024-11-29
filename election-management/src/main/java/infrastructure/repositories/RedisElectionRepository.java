@@ -1,6 +1,5 @@
 package infrastructure.repositories;
 
-import domain.Candidate;
 import domain.Election;
 import domain.ElectionRepository;
 import io.quarkus.redis.datasource.RedisDataSource;
@@ -40,6 +39,11 @@ public class RedisElectionRepository implements ElectionRepository {
     }
 
     @Override
+    public List<Election> findAll() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public List<Election> findAll(int offset, int limit) {
         throw new UnsupportedOperationException();
     }
@@ -57,7 +61,7 @@ public class RedisElectionRepository implements ElectionRepository {
                 );
 
         var map = scoredValues.stream().map(scoredValue -> {
-            Candidate candidate = election.votes()
+            domain.Candidate candidate = election.votes()
                     .keySet()
                     .stream()
                     .filter(c -> c.id().equals(scoredValue.value()))

@@ -20,6 +20,14 @@ public record Candidate(
             Optional<String> phone,
             Optional<String> jobTitle
     ) {
-        return new Candidate(UUID.randomUUID().toString(), photo, givenName, familyName, email, phone, jobTitle);
+        return new Candidate(
+                UUID.randomUUID().toString(),
+                photo,
+                givenName,
+                familyName,
+                email,
+                phone,
+                jobTitle
+        );
     }
 }

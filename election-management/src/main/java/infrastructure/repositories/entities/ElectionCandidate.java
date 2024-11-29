@@ -1,31 +1,20 @@
 package infrastructure.repositories.entities;
 
+
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
+import javax.persistence.Id;
 
 @Entity(name = "election_candidate")
-public class ElectionCandidate {
+public class ElectionCandidate extends PanacheEntityBase {
 
+    @Id
     @EmbeddedId
-    private ElectionCandidateId id;
+    public ElectionCandidateId id;
 
-    private Integer votes;
-
-    public ElectionCandidateId getId() {
-        return id;
-    }
-
-    public void setId(ElectionCandidateId id) {
-        this.id = id;
-    }
-
-    public Integer getVotes() {
-        return votes;
-    }
-
-    public void setVotes(Integer votes) {
-        this.votes = votes;
-    }
+    public Integer votes;
 
     public static ElectionCandidate fromDomain(
             domain.Election election,
@@ -35,12 +24,13 @@ public class ElectionCandidate {
         ElectionCandidate entity = new ElectionCandidate();
 
         ElectionCandidateId id = new ElectionCandidateId();
-        id.setElectionId(election.id());
-        id.setCandidateId(candidate.id());
+        id.electionId = election.id();
+        id.candidateId = candidate.id();
 
-        entity.setId(id);
-        entity.setVotes(votes);
+        entity.id = id;
+        entity.votes = votes;
 
         return entity;
     }
+
 }

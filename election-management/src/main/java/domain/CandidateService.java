@@ -15,15 +15,19 @@ public class CandidateService {
         repository.save(candidate);
     }
 
+    public List<Candidate> findAll() {
+        return repository.findAll();
+    }
+
     public List<Candidate> findAll(int page, int size) {
-        int offset = page * size;
-        return repository.findAll(offset, size);
+        return repository.findAll(page, size);
     }
 
     public Candidate findById(String id) {
         return repository.findById(id).orElseThrow();
     }
 
-    public void delete(String id) { repository.delete(id);
+    public void delete(String id) {
+        repository.delete(id);
     }
 }
