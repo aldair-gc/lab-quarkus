@@ -1,5 +1,6 @@
 package domain;
 
+import io.quarkus.test.TestTransaction;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +14,7 @@ public abstract class CandidateRepositoryTest {
     public abstract CandidateRepository repository();
 
     @Test
+    @TestTransaction
     void save() {
         Candidate candidate = Instancio.create(Candidate.class);
         repository().save(candidate);
@@ -34,6 +36,7 @@ public abstract class CandidateRepositoryTest {
     }
 
     @Test
+    @TestTransaction
     void findByName() {
         Candidate candidate1 = Instancio.create(Candidate.class);
         Candidate candidate2 = Instancio.of(Candidate.class)
@@ -47,4 +50,5 @@ public abstract class CandidateRepositoryTest {
         assertEquals(1, result.size());
         assertEquals(candidate2, result.get(0));
     }
+
 }

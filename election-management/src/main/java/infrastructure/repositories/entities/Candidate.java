@@ -1,17 +1,12 @@
 package infrastructure.repositories.entities;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
-import org.hibernate.annotations.GenericGenerator;
-
 import javax.persistence.*;
 import java.util.Optional;
 
 @Entity(name="candidates")
-public class Candidate extends PanacheEntityBase {
+public class Candidate {
 
     @Id
-    @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     private String id;
     private String photo;
     @Column(name="given_name")
