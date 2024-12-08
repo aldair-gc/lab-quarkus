@@ -1,7 +1,6 @@
 services:
 
   # REVERSE PROXY
-
   ## https://doc.traefik.io/traefik/
   reverse-proxy:
     image: traefik:2.9.8
@@ -17,7 +16,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   # APPLICATIONS
-
   election-management:
     extends:
       file: common.yml
@@ -71,24 +69,54 @@ services:
       - traefik.http.routers.result-app.middlewares=headers
 
   # DATABASE - https://quarkus.io/guides/datasource
-
   ## https://mariadb.org/
   database:
-    image: mariadb:10.11.2
+    image: mariadb:11.6.2
+    command:
+      - --log-bin
+      - --server-id=10
+      - --log-basename=mariadb
+      - --binlog-format=row
     environment:
+      - MARIADB_ROOT_PASSWORD=root
+      - MARIADB_DATABASE=election-management
       - MARIADB_USER=election-management-user
       - MARIADB_PASSWORD=election-management-password
-      - MARIADB_DATABASE=election-management
+      - MARIADB_REPLICATION_USER=replication-user
+      - MARIADB_REPLICATION_PASSWORD=replication-password
+    healthcheck:
+        test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+        interval: 10s
+        timeout: 5s
+        retries: 3
+
+  database-replica:
+    image: mariadb:11.6.2
+    command:
+      - --server-id=11
+      - --log-basename=mariadb
+    environment:
       - MARIADB_ROOT_PASSWORD=root
+      - MARIADB_MASTER_HOST=database
+      - MARIADB_MASTER_CONNECT_RETRY=10
+      - MARIADB_REPLICATION_USER=replication-user
+      - MARIADB_REPLICATION_PASSWORD=replication-password
+      - MARIADB_HEALTHCHECK_GRANTS=REPLICA MONITOR
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--replication_io", "--replication_sql", "--replication_seconds_behind_master=1", "--replication" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      database:
+        condition: service_healthy
 
   # CACHING - https://quarkus.io/guides/redis
-
   ## https://redis.io/
   caching:
     image: redis:7.0.9
 
   # LOGGING - https://quarkus.io/guides/centralized-log-management
-
   ## https://www.mongodb.com/
   mongodb:
     image: mongo:6.0.4
@@ -129,7 +157,6 @@ services:
       - traefik.http.services.graylog.loadbalancer.server.port=9000
 
   # OPENTELEMETRY - https://quarkus.io/guides/opentelemetry
-
   ## https://www.jaegertracing.io/
   jaeger:
     image: jaegertracing/all-in-one:1.42.0
