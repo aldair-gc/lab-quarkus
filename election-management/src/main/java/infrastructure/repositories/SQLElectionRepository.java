@@ -43,10 +43,6 @@ public class SQLElectionRepository implements ElectionRepository {
             .forEach(electionCandidateRepository::persist);
     }
 
-    public List<domain.Election> findAll() {
-        return List.of();
-    }
-
     @RegisterForReflection
     public static class ElectionCandidateResult {
         public String election_id;
@@ -60,11 +56,57 @@ public class SQLElectionRepository implements ElectionRepository {
         public Integer votes;
     }
 
+    public List<domain.Election> findAll() {
+        String electionQuery = "SELECT e.id AS election_id, "
+            + "c.id AS candidate_id, c.photo,c.given_name, "
+            + "c.family_name, c.email, c.phone, c.job_title, "
+            + "ec.votes FROM elections AS e "
+            + "INNER JOIN election_candidate AS ec ON ec.election_id = e.id "
+            + "INNER JOIN candidates AS c ON c.id = ec.candidate_id";
+
+        Stream<ElectionCandidateResult> stream = electionCandidateRepository
+            .getEntityManager()
+            .createQuery(electionQuery, ElectionCandidateResult.class)
+            .getResultStream();
+
+        Map<String, List<ElectionCandidateResult>> grouped = stream
+            .collect(Collectors.groupingBy(ecr -> ecr.election_id));
+
+        return grouped
+            .entrySet()
+            .stream()
+            .map(group -> Map.entry(
+                    group.getKey(),
+                    group.getValue()
+                        .stream()
+                        .map(electionCandidate -> Map.entry(
+                            new domain.Candidate(
+                                electionCandidate.candidate_id,
+                                Optional.ofNullable(electionCandidate.photo),
+                                electionCandidate.given_name,
+                                electionCandidate.family_name,
+                                electionCandidate.email,
+                                Optional.ofNullable(electionCandidate.phone),
+                                Optional.ofNullable(electionCandidate.job_title)
+                            ),
+                            electionCandidate.votes
+                        ))
+                )
+            )
+            .map(entry -> new domain.Election(
+                    entry.getKey(),
+                    entry.getValue().collect(
+                        Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+                )
+            )
+            .collect(Collectors.toList());
+    }
+
     public List<domain.Election> findAll(int offset, int limit) {
-        String electionQuery = "SELECT " + "e.id AS election_id, "
-            + "c.id AS candidate_id, " + "c.photo, " + "c.given_name, "
-            + "c.family_name, " + "c.email, " + "c.phone, " + "c.job_title, "
-            + "ec.votes " + "FROM elections AS e "
+        String electionQuery = "SELECT e.id AS election_id, "
+            + "c.id AS candidate_id, c.photo,c.given_name, "
+            + "c.family_name, c.email, c.phone, c.job_title, "
+            + "ec.votes FROM elections AS e "
             + "INNER JOIN election_candidate AS ec ON ec.election_id = e.id "
             + "INNER JOIN candidates AS c ON c.id = ec.candidate_id";
 
