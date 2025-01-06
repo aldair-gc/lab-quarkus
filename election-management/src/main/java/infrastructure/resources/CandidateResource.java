@@ -5,12 +5,12 @@ import api.dto.in.CreateCandidate;
 import api.dto.in.UpdateCandidate;
 import api.dto.out.Candidate;
 import io.quarkus.micrometer.runtime.MicrometerCounted;
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import org.jboss.resteasy.reactive.RestResponse;
 
-import javax.transaction.Transactional;
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
 import java.util.List;
 
 @Path("/api/candidates")
@@ -26,25 +26,23 @@ public class CandidateResource {
 
     @POST
     @ResponseStatus(RestResponse.StatusCode.CREATED)
-    @Transactional
     @MicrometerCounted(value = "candidates.created")
-    public void create(CreateCandidate dto) {
-        api.create(dto);
+    public Uni<Void> create(CreateCandidate dto) {
+        return api.create(dto);
     }
 
     @PUT
     @Path("/{id}")
     @ResponseStatus(RestResponse.StatusCode.OK)
-    @Transactional
     @MicrometerCounted(value = "candidates.updated")
-    public Candidate update(@PathParam("id") String id, UpdateCandidate dto) {
+    public Uni<Candidate> update(@PathParam("id") String id, UpdateCandidate dto) {
         return api.update(id, dto);
     }
 
     @GET
     @ResponseStatus(RestResponse.StatusCode.OK)
     @MicrometerCounted(value = "candidates.listed")
-    public List<Candidate> list(
+    public Uni<List<Candidate>> list(
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("10") int size
     ) {
@@ -54,10 +52,9 @@ public class CandidateResource {
     @DELETE
     @Path("/{id}")
     @ResponseStatus(RestResponse.StatusCode.OK)
-    @Transactional
     @MicrometerCounted(value = "candidates.deleted")
-    public boolean delete(@PathParam("id") String id) {
+    public Uni<Boolean> delete(@PathParam("id") String id) {
         api.delete(id);
-        return true;
+        return Uni.createFrom().item(true);
     }
 }

@@ -1,15 +1,17 @@
 package domain;
 
+import io.smallrye.mutiny.Uni;
+
 import java.util.List;
 
 public interface ElectionRepository {
 
-    void submit(Election election);
+    Uni<Void> submit(Election election);
 
-    List<Election> findAll();
+    Uni<List<Election>> findAll();
 
-    List<Election> findAll(int offset, int limit);
+    Uni<List<Election>> findAll(int offset, int limit);
 
-    void delete(String id);
+    Uni<Void> delete(String id);
 
 }

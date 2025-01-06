@@ -3,55 +3,97 @@ package infrastructure.repositories;
 import domain.CandidateQuery;
 import domain.CandidateRepository;
 import infrastructure.repositories.entities.Candidate;
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-import javax.transaction.Transactional;
+import io.quarkus.hibernate.reactive.panache.common.WithSession;
+import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
+
 import java.util.List;
 import java.util.Optional;
 
 @ApplicationScoped
 public class SQLCandidateRepository implements CandidateRepository {
 
-    private final PanacheCandidateRepository repository;
-
-    @Inject
-    public SQLCandidateRepository(PanacheCandidateRepository repository) {
-        this.repository = repository;
+    @Override
+    @WithTransaction
+    public Uni<Void> save(domain.Candidate candidate) {
+        return Candidate.persist(Candidate.fromDomain(candidate));
     }
 
-    @Transactional
-    public void save(List<domain.Candidate> candidates) {
-        candidates.stream()
-            .map(Candidate::fromDomain)
-            .forEach(candidate -> repository.getEntityManager().merge(candidate));
+    @Override
+    @WithTransaction
+    public Uni<Void> save(List<domain.Candidate> candidates) {
+        return Candidate.persist(candidates.stream().map(Candidate::fromDomain));
     }
 
-    @Transactional
-    public void save(domain.Candidate candidate) {
-        Candidate entity = Candidate.fromDomain(candidate);
-        repository.getEntityManager().merge(entity);
+    @Override
+    @WithSession
+    public Uni<List<domain.Candidate>> find(CandidateQuery query) {
+        return Candidate
+            .find("id, name", query.ids(), query.name())
+            .list()
+            .map(l -> l
+                .stream()
+                .map(c -> Candidate.toDomain((Candidate) c))
+                .toList()
+            );
     }
 
-    public List<domain.Candidate> find(CandidateQuery query) {
-        return repository.findByName(query.name().orElse("")).stream().map(Candidate::toDomain).toList();
+    @Override
+    @WithSession
+    public Uni<List<domain.Candidate>> findAll() {
+        return Candidate
+            .listAll()
+            .map(l -> l
+                .stream()
+                .map(c -> Candidate.toDomain((Candidate) c))
+                .toList()
+            );
     }
 
-    public List<domain.Candidate> findAll() {
-        return repository.streamAll().map(Candidate::toDomain).toList();
+    @Override
+    @WithSession
+    public Uni<List<domain.Candidate>> findAll(int offset, int size) {
+        return Candidate
+            .listAll()
+            .map(l -> l
+                .stream()
+                .skip(offset)
+                .limit(size)
+                .map(c -> Candidate.toDomain((Candidate) c))
+                .toList()
+            );
     }
 
-    public List<domain.Candidate> findAll(int offset, int size) {
-        int page = (int) Math.floor((double) offset / size);
-        return repository.findAllWithPagination(page, size).stream().map(Candidate::toDomain).toList();
+    @Override
+    @WithSession
+    public Uni<Optional<domain.Candidate>> findById(String id) {
+        return Candidate
+            .findById(id)
+            .map(Optional::ofNullable)
+            .map(c -> c
+                .map(ca -> Candidate.toDomain((Candidate) ca))
+            );
     }
 
-    public Optional<domain.Candidate> findById(String id) {
-        Optional<Candidate> candidate = repository.find("id", id).stream().findFirst();
-        return candidate.map(Candidate::toDomain);
+    @Override
+    @WithSession
+    public Uni<Optional<domain.Candidate>> findByName(String name) {
+        return Candidate
+            .findByName(name)
+            .map(l -> l
+                .stream()
+                .map(c -> Candidate.toDomain((Candidate) c))
+                .findFirst()
+            );
     }
 
-    public void delete(String id) {
-        repository.delete("id", id);
+    @Override
+    @WithTransaction
+    public Uni<Void> delete(String id) {
+        return Candidate
+            .delete("id", id)
+            .map(v -> null);
     }
 
 }

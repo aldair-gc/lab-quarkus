@@ -4,8 +4,8 @@ import domain.annotations.Principal;
 import infrastructure.repositories.RedisElectionRepository;
 import infrastructure.repositories.SQLElectionRepository;
 import io.quarkus.scheduler.Scheduled;
+import jakarta.enterprise.context.ApplicationScoped;
 
-import javax.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
 public class Sync {
@@ -19,8 +19,8 @@ public class Sync {
 
     @Scheduled(cron = "*/10 * * * * ?")
     void sync() {
-        sqlRepository.findAll().forEach(
-                election -> sqlRepository.sync(redisRepository.sync(election))
+        sqlRepository.findAll().invoke(elections -> elections
+            .forEach(election -> sqlRepository.sync(redisRepository.sync(election)))
         );
     }
 }

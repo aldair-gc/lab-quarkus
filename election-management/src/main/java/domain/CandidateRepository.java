@@ -1,24 +1,28 @@
 package domain;
 
+import io.smallrye.mutiny.Uni;
+
 import java.util.List;
 import java.util.Optional;
 
 public interface CandidateRepository {
 
-    void save(List<Candidate> candidates);
+    Uni<Void> save(List<Candidate> candidates);
 
-    default void save(Candidate candidate) {
-        save(List.of(candidate));
+    default Uni<Void> save(Candidate candidate) {
+        return save(List.of(candidate));
     }
 
-    List<Candidate> find(CandidateQuery query);
+    Uni<List<Candidate>> find(CandidateQuery query);
 
-    List<Candidate> findAll();
+    Uni<List<Candidate>> findAll();
 
-    List<Candidate> findAll(int offset, int size);
+    Uni<List<Candidate>> findAll(int offset, int size);
 
-    Optional<Candidate> findById(String id);
+    Uni<Optional<Candidate>> findById(String id);
 
-    void delete(String id);
+    Uni<Optional<Candidate>> findByName(String name);
+
+    Uni<Void> delete(String id);
 
 }

@@ -1,16 +1,21 @@
 package domain;
 
+import io.quarkus.hibernate.reactive.panache.Panache;
+import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.mockito.InjectMock;
+import io.quarkus.test.vertx.RunOnVertxContext;
+import io.quarkus.test.vertx.UniAsserter;
+import io.smallrye.mutiny.Uni;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
+import org.mockito.Mockito;
+
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @QuarkusTest
@@ -22,52 +27,50 @@ class CandidateServiceTest {
     CandidateRepository repository;
 
     @Test
-    void save() {
+    @RunOnVertxContext
+    void save(UniAsserter asserter) {
         Candidate candidate = Instancio.create(Candidate.class);
-
-        service.save(candidate);
-
-        verify(repository).save(candidate);
-        verifyNoMoreInteractions(repository);
+        asserter.execute(() -> Mockito
+            .when(repository.save(candidate))
+            .thenReturn(Uni.createFrom().nullItem()));
+        asserter.assertNull(() -> service.save(candidate));
+        asserter.execute(() -> {
+            verify(repository).save(candidate);
+            verifyNoMoreInteractions(repository);
+        });
+        asserter.surroundWith((u -> Panache.withSession(() -> u)));
     }
 
     @Test
-    void findAll() {
+    @RunOnVertxContext
+    void findAll(UniAsserter asserter) {
         List<Candidate> candidates = Instancio.stream(Candidate.class).limit(10).toList();
-
-        when(repository.findAll(0, 10)).thenReturn(candidates);
-
-        List<Candidate> result = service.findAll(0, 10);
-
-        verify(repository).findAll(0, 10);
-        verifyNoMoreInteractions(repository);
-
-        assertEquals(candidates, result);
+        asserter.execute(() -> Mockito
+            .when(repository.findAll())
+            .thenReturn(Uni.createFrom().item(candidates)));
+        asserter.assertEquals(() -> service.findAll(), candidates);
+        asserter.surroundWith((u -> Panache.withSession(() -> u)));
     }
 
     @Test
-    void findById_whenCandidateIsFound_returnsCandidate() {
+    @RunOnVertxContext
+    void findById_whenCandidateIsFound_returnsCandidate(UniAsserter asserter) {
         Candidate candidate = Instancio.create(Candidate.class);
-
-        when(repository.findById(candidate.id())).thenReturn(Optional.of(candidate));
-
-        Candidate result = service.findById(candidate.id());
-
-        verify(repository).findById(candidate.id());
-        verifyNoMoreInteractions(repository);
-
-        assertEquals(candidate, result);
+        asserter.execute(() -> Mockito
+            .when(repository.findById(candidate.id()))
+            .thenReturn(Uni.createFrom().item(Optional.of(candidate))));
+        asserter.assertEquals(() -> service.findById(candidate.id()), Optional.of(candidate));
+        asserter.surroundWith((u -> Panache.withSession(() -> u)));
     }
 
     @Test
-    void findById_whenCandidateIsNotFound_throwsException() {
+    @RunOnVertxContext
+    void findById_whenCandidateIsNotFound_throwsException(UniAsserter asserter) {
         Candidate candidate = Instancio.create(Candidate.class);
-
-        when(repository.findById(candidate.id())).thenReturn(Optional.empty());
-
-        assertThrows(NoSuchElementException.class, () -> service.findById(candidate.id()));
-
-        verify(repository).findById(candidate.id());
-        verifyNoMoreInteractions(repository);
+        asserter.execute(() -> Mockito
+            .when(repository.findById(candidate.id()))
+            .thenReturn(Uni.createFrom().item(Optional.empty())));
+        asserter.assertFailedWith(() -> service.findById(candidate.id()), NoSuchElementException.class);
+        asserter.surroundWith((u -> Panache.withSession(() -> u)));
     }
 }

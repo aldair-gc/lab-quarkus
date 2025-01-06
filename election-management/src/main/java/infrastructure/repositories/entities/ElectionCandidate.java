@@ -1,16 +1,15 @@
 package infrastructure.repositories.entities;
 
-import javax.persistence.EmbeddedId;
-import javax.persistence.Entity;
-import javax.persistence.Id;
+
+import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
+import jakarta.persistence.*;
 
 @Entity(name = "election_candidate")
-public class ElectionCandidate {
+public class ElectionCandidate extends PanacheEntityBase {
 
     @Id
     @EmbeddedId
     public ElectionCandidateId id;
-
     public Integer votes;
 
     public static ElectionCandidate fromDomain(

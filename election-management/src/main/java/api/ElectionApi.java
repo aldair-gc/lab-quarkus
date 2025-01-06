@@ -3,7 +3,8 @@ package api;
 import api.dto.out.Election;
 import domain.ElectionService;
 
-import javax.enterprise.context.ApplicationScoped;
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
 
 @ApplicationScoped
@@ -15,18 +16,20 @@ public class ElectionApi {
         this.service = service;
     }
 
-    public void submit() {
+    public Uni<Void> submit() {
         service.submit();
+        return null;
     }
 
-    public List<Election> findAll() {
+    public Uni<List<Election>> findAll() {
         return service.findAll()
-                .stream()
+            .map(elections -> elections.stream()
                 .map(Election::fromDomain)
-                .toList();
+                .toList());
+
     }
 
-    public void delete(String id) {
-        service.delete(id);
+    public Uni<Void> delete(String id) {
+        return service.delete(id);
     }
 }

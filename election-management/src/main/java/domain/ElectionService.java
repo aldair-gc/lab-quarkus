@@ -1,10 +1,12 @@
 package domain;
 
 import domain.annotations.Principal;
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Any;
+import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.inject.Any;
-import javax.enterprise.inject.Instance;
 import java.util.List;
 
 @ApplicationScoped
@@ -13,6 +15,7 @@ public class ElectionService {
     private final Instance<ElectionRepository> repositories;
     private final ElectionRepository repository;
 
+    @Inject
     public ElectionService(CandidateService candidateService,
                            @Any Instance<ElectionRepository> repositories,
                            @Principal ElectionRepository repository) {
@@ -21,16 +24,16 @@ public class ElectionService {
         this.repository = repository;
     }
 
-    public List<Election> findAll() {
+    public Uni<List<Election>> findAll() {
         return repository.findAll();
     }
 
-    public void submit() {
-        Election election = Election.create(candidateService.findAll());
-        repositories.forEach(repository -> repository.submit(election));
+    public Uni<Election> submit() {
+        Uni<Election> election = candidateService.findAll().map(Election::create);
+        return election.invoke(e -> repositories.forEach(repository -> repository.submit(e)));
     }
 
-    public void delete(String id) {
-        repository.delete(id);
+    public Uni<Void> delete(String id) {
+        return repository.delete(id);
     }
 }

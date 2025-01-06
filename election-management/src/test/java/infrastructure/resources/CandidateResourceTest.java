@@ -4,14 +4,15 @@ import api.CandidateApi;
 import api.dto.in.CreateCandidate;
 import api.dto.in.UpdateCandidate;
 import api.dto.out.Candidate;
+import io.quarkus.test.InjectMock;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.mockito.InjectMock;
+import io.smallrye.mutiny.Uni;
 import org.instancio.Instancio;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.junit.jupiter.api.Test;
 
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MediaType;
 import java.util.Arrays;
 
 import static io.restassured.RestAssured.given;
@@ -42,7 +43,7 @@ class CandidateResourceTest {
         var in = Instancio.create(UpdateCandidate.class);
         var out = Instancio.create(Candidate.class);
 
-        when(api.update(out.id(), in)).thenReturn(out);
+        when(api.update(out.id(), in)).thenReturn(Uni.createFrom().item(out));
 
     var response = given().contentType(MediaType.APPLICATION_JSON).body(in)
         .when().put("/" + out.id())
@@ -59,7 +60,7 @@ class CandidateResourceTest {
     void list() {
         var out = Instancio.stream(Candidate.class).limit(4).toList();
 
-        when(api.list(0, 10)).thenReturn(out);
+        when(api.list(0, 10)).thenReturn(Uni.createFrom().item(out));
 
         var response = given()
             .when().get()

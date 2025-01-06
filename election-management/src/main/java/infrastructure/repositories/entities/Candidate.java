@@ -1,10 +1,14 @@
 package infrastructure.repositories.entities;
 
-import javax.persistence.*;
+import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
+import io.smallrye.mutiny.Uni;
+import jakarta.persistence.*;
+
+import java.util.List;
 import java.util.Optional;
 
 @Entity(name="candidates")
-public class Candidate {
+public class Candidate extends PanacheEntityBase {
 
     @Id
     private String id;
@@ -17,62 +21,6 @@ public class Candidate {
     private String phone;
     @Column(name="job_title")
     private String jobTitle;
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getPhoto() {
-        return photo;
-    }
-
-    public void setPhoto(String photo) {
-        this.photo = photo;
-    }
-
-    public String getGivenName() {
-        return givenName;
-    }
-
-    public void setGivenName(String givenName) {
-        this.givenName = givenName;
-    }
-
-    public String getFamilyName() {
-        return familyName;
-    }
-
-    public void setFamilyName(String familyName) {
-        this.familyName = familyName;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    public String getJobTitle() {
-        return jobTitle;
-    }
-
-    public void setJobTitle(String jobTitle) {
-        this.jobTitle = jobTitle;
-    }
 
     public static Candidate fromDomain(domain.Candidate domain) {
         Candidate entity = new Candidate();
@@ -98,6 +46,19 @@ public class Candidate {
                 Optional.ofNullable(entity.phone),
                 Optional.ofNullable(entity.jobTitle)
         );
+    }
+
+    public static Uni<List<Candidate>> findByName(String name) {
+        return list(
+            "lower(givenName) like lower(?1) or lower(familyName) like lower(?1)"
+            , "%" + name + "%"
+        );
+    }
+
+    public static Uni<List<Candidate>> findAllWithPagination(int offset, int size) {
+        return find("select c from candidates c")
+            .page(offset, size)
+            .list();
     }
 
 }

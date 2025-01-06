@@ -2,33 +2,24 @@ package infrastructure.repositories;
 
 import domain.CandidateRepository;
 import domain.CandidateRepositoryTest;
-import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
-import org.junit.jupiter.api.BeforeEach;
-
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 @QuarkusTest
 class SQLCandidateRepositoryTest extends CandidateRepositoryTest {
 
     @Inject
-    PanacheCandidateRepository panacheCandidateRepository;
-
-    @Inject
-    SQLCandidateRepository candidateRepository;
+    SQLCandidateRepository repository;
 
     @Override
     public CandidateRepository repository() {
-        return candidateRepository;
+        return repository;
     }
 
-    @BeforeEach
-    @TestTransaction
-    void tearDown() {
-        panacheCandidateRepository
-            .getEntityManager()
-            .createNativeQuery("TRUNCATE TABLE candidates")
-            .executeUpdate();
-    }
+//    @BeforeEach
+//    @RunOnVertxContext
+//    void tearDown(TransactionalUniAsserter asserter) {
+//        asserter.execute(() -> repository.findAll().invoke(candidates -> candidates.forEach(candidate -> repository.delete(candidate.id()))));
+//    }
 
 }

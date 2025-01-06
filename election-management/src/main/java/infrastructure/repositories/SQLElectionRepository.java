@@ -1,14 +1,19 @@
 package infrastructure.repositories;
 
+import domain.Candidate;
 import domain.ElectionRepository;
 import domain.annotations.Principal;
 import infrastructure.repositories.entities.Election;
 import infrastructure.repositories.entities.ElectionCandidate;
+import io.quarkus.hibernate.reactive.panache.PanacheQuery;
+import io.quarkus.hibernate.reactive.panache.common.ProjectedFieldName;
+import io.quarkus.hibernate.reactive.panache.common.WithSession;
+import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
+import io.quarkus.panache.common.Page;
 import io.quarkus.runtime.annotations.RegisterForReflection;
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,20 +24,11 @@ import java.util.stream.Stream;
 @ApplicationScoped
 public class SQLElectionRepository implements ElectionRepository {
 
-    private final PanacheElectionRepository electionRepository;
-    private final PanacheElectionCandidateRepository electionCandidateRepository;
-
-    @Inject
-    public SQLElectionRepository(PanacheElectionRepository electionRepository, PanacheElectionCandidateRepository electionCandidateRepository) {
-        this.electionRepository = electionRepository;
-        this.electionCandidateRepository = electionCandidateRepository;
-    }
-
-    @Transactional
-    public void submit(domain.Election election) {
+    @WithTransaction
+    public Uni<Void> submit(domain.Election election) {
         Election entity = Election.fromDomain(election);
 
-        electionRepository.persist(entity);
+        Election.persist(entity);
 
         election
             .votes()
@@ -40,39 +36,64 @@ public class SQLElectionRepository implements ElectionRepository {
             .stream()
             .map(entry -> ElectionCandidate
                 .fromDomain(election, entry.getKey(), entry.getValue()))
-            .forEach(electionCandidateRepository::persist);
+            .forEach(ec -> ec.persist());
+
+        return Uni.createFrom().voidItem();
     }
 
     @RegisterForReflection
-    public static class ElectionCandidateResult {
-        public String election_id;
-        public String candidate_id;
+    public static class ElectionCandidateDto {
+        public Integer votes;
+        public String electionId;
+        public String candidateId;
         public String photo;
-        public String given_name;
-        public String family_name;
+        public String givenName;
+        public String familyName;
         public String email;
         public String phone;
-        public String job_title;
-        public Integer votes;
+        public String jobTitle;
+
+        public ElectionCandidateDto(
+            Integer votes,
+            @ProjectedFieldName("id.electionId") String electionId,
+            @ProjectedFieldName("id.candidateId") String candidateId,
+            @ProjectedFieldName("candidate.photo") String photo,
+            @ProjectedFieldName("candidate.given_name") String givenName,
+            @ProjectedFieldName("candidate.family_name") String familyName,
+            @ProjectedFieldName("candidate.email") String email,
+            @ProjectedFieldName("candidate.phone") String phone,
+            @ProjectedFieldName("candidate.job_title") String jobTitle
+        ) {
+            this.votes = votes;
+            this.electionId = electionId;
+            this.candidateId = candidateId;
+            this.photo = photo;
+            this.givenName = givenName;
+            this.familyName = familyName;
+            this.email = email;
+            this.phone = phone;
+            this.jobTitle = jobTitle;
+        }
     }
 
-    public List<domain.Election> findAll() {
-        String electionQuery = "SELECT e.id AS election_id, "
-            + "c.id AS candidate_id, c.photo,c.given_name, "
-            + "c.family_name, c.email, c.phone, c.job_title, "
-            + "ec.votes FROM elections AS e "
-            + "INNER JOIN election_candidate AS ec ON ec.election_id = e.id "
-            + "INNER JOIN candidates AS c ON c.id = ec.candidate_id";
+    @WithSession
+    public Uni<List<domain.Election>> findAll() {
+        PanacheQuery<ElectionCandidateDto> query = ElectionCandidate
+            .findAll()
+            .project(ElectionCandidateDto.class);
 
-        Stream<ElectionCandidateResult> stream = electionCandidateRepository
-            .getEntityManager()
-            .createQuery(electionQuery, ElectionCandidateResult.class)
-            .getResultStream();
+        Stream<ElectionCandidateDto> stream = ElectionCandidate
+            .findAll()
+            .project(ElectionCandidateDto.class)
+            .list()
+            .await()
+            .indefinitely()
+            .stream();
 
-        Map<String, List<ElectionCandidateResult>> grouped = stream
-            .collect(Collectors.groupingBy(ecr -> ecr.election_id));
+        Map<String, List<ElectionCandidateDto>> grouped = stream
+            .collect(Collectors.groupingBy(ecr -> ecr.electionId));
 
-        return grouped
+        List<domain.Election> collect = grouped
             .entrySet()
             .stream()
             .map(group -> Map.entry(
@@ -80,14 +101,14 @@ public class SQLElectionRepository implements ElectionRepository {
                     group.getValue()
                         .stream()
                         .map(electionCandidate -> Map.entry(
-                            new domain.Candidate(
-                                electionCandidate.candidate_id,
+                            new Candidate(
+                                electionCandidate.candidateId,
                                 Optional.ofNullable(electionCandidate.photo),
-                                electionCandidate.given_name,
-                                electionCandidate.family_name,
+                                electionCandidate.givenName,
+                                electionCandidate.familyName,
                                 electionCandidate.email,
                                 Optional.ofNullable(electionCandidate.phone),
-                                Optional.ofNullable(electionCandidate.job_title)
+                                Optional.ofNullable(electionCandidate.jobTitle)
                             ),
                             electionCandidate.votes
                         ))
@@ -100,28 +121,31 @@ public class SQLElectionRepository implements ElectionRepository {
                 )
             )
             .collect(Collectors.toList());
+
+        return Uni.createFrom().item(collect);
     }
 
-    public List<domain.Election> findAll(int offset, int limit) {
-        String electionQuery = "SELECT e.id AS election_id, "
-            + "c.id AS candidate_id, c.photo,c.given_name, "
-            + "c.family_name, c.email, c.phone, c.job_title, "
-            + "ec.votes FROM elections AS e "
-            + "INNER JOIN election_candidate AS ec ON ec.election_id = e.id "
-            + "INNER JOIN candidates AS c ON c.id = ec.candidate_id";
+    @WithSession
+    public Uni<List<domain.Election>> findAll(int offset, int limit) {
+        PanacheQuery<ElectionCandidateDto> query = ElectionCandidate
+            .findAll()
+            .project(ElectionCandidateDto.class);
 
         int page = offset / limit;
 
-        Stream<ElectionCandidateResult> stream = electionCandidateRepository
-            .find(electionQuery)
-            .page(page, limit)
-            .project(ElectionCandidateResult.class)
+        Stream<ElectionCandidateDto> stream = ElectionCandidate
+            .findAll()
+            .page(Page.of(page, limit))
+            .project(ElectionCandidateDto.class)
+            .list()
+            .await()
+            .indefinitely()
             .stream();
 
-        Map<String, List<ElectionCandidateResult>> grouped = stream
-            .collect(Collectors.groupingBy(ecr -> ecr.election_id));
+        Map<String, List<ElectionCandidateDto>> grouped = stream
+            .collect(Collectors.groupingBy(ecr -> ecr.electionId));
 
-        return grouped
+        List<domain.Election> collect = grouped
             .entrySet()
             .stream()
             .map(group -> Map.entry(
@@ -129,14 +153,14 @@ public class SQLElectionRepository implements ElectionRepository {
                     group.getValue()
                         .stream()
                         .map(electionCandidate -> Map.entry(
-                            new domain.Candidate(
-                                electionCandidate.candidate_id,
+                            new Candidate(
+                                electionCandidate.candidateId,
                                 Optional.ofNullable(electionCandidate.photo),
-                                electionCandidate.given_name,
-                                electionCandidate.family_name,
+                                electionCandidate.givenName,
+                                electionCandidate.familyName,
                                 electionCandidate.email,
                                 Optional.ofNullable(electionCandidate.phone),
-                                Optional.ofNullable(electionCandidate.job_title)
+                                Optional.ofNullable(electionCandidate.jobTitle)
                             ),
                             electionCandidate.votes
                         ))
@@ -149,14 +173,16 @@ public class SQLElectionRepository implements ElectionRepository {
                 )
             )
             .collect(Collectors.toList());
+
+        return Uni.createFrom().item(collect);
     }
 
-    public void delete(String id) {
-        electionRepository.delete("id", id);
+    public Uni<Void> delete(String id) {
+        return ElectionCandidate.delete("id", id).replaceWithVoid();
     }
 
-    @Transactional
-    public void sync(domain.Election election) {
+    @WithSession
+    public Uni<Void> sync(domain.Election election) {
         election
             .votes()
             .entrySet()
@@ -164,6 +190,8 @@ public class SQLElectionRepository implements ElectionRepository {
             .map(entry -> ElectionCandidate
                 .fromDomain(election, entry.getKey(), entry.getValue())
             )
-            .forEach(electionCandidateRepository::persist);
+            .forEach(ec -> ec.persist());
+
+        return Uni.createFrom().voidItem();
     }
 }

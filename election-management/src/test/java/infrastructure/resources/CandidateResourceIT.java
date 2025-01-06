@@ -9,7 +9,7 @@ import org.instancio.Instancio;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.junit.jupiter.api.Test;
 
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MediaType;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;

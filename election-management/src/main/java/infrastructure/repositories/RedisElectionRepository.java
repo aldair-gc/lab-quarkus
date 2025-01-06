@@ -7,8 +7,9 @@ import io.quarkus.redis.datasource.pubsub.PubSubCommands;
 import io.quarkus.redis.datasource.sortedset.ScoreRange;
 import io.quarkus.redis.datasource.sortedset.ScoredValue;
 import io.quarkus.redis.datasource.sortedset.SortedSetCommands;
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
 
-import javax.enterprise.context.ApplicationScoped;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -25,7 +26,7 @@ public class RedisElectionRepository implements ElectionRepository {
     }
 
     @Override
-    public void submit(Election election) {
+    public Uni<Void> submit(Election election) {
         Map<String, Double> rank = election.votes()
                 .entrySet()
                 .stream()
@@ -36,21 +37,23 @@ public class RedisElectionRepository implements ElectionRepository {
 
         commands.zadd("election:" + election.id(), rank);
         pubSubCommands.publish("elections", election.id());
+        return null;
     }
 
     @Override
-    public List<Election> findAll() {
+    public Uni<List<Election>> findAll() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public List<Election> findAll(int offset, int limit) {
+    public Uni<List<Election>> findAll(int offset, int limit) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void delete(String id) {
+    public Uni<Void> delete(String id) {
         commands.zrem("election:" + id);
+        return Uni.createFrom().voidItem();
     }
 
     public Election sync(Election election) {

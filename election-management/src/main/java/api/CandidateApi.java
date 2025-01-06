@@ -3,7 +3,8 @@ package api;
 import domain.Candidate;
 import domain.CandidateService;
 
-import javax.enterprise.context.ApplicationScoped;
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
 
 @ApplicationScoped
@@ -15,23 +16,27 @@ public class CandidateApi {
         this.service = service;
     }
 
-    public void create(api.dto.in.CreateCandidate dto) {
-        service.save(dto.toDomain());
+    public Uni<Void> create(api.dto.in.CreateCandidate dto) {
+        return service.save(dto.toDomain());
     }
 
-    public api.dto.out.Candidate update(String id, api.dto.in.UpdateCandidate dto) {
+    public Uni<api.dto.out.Candidate> update(String id, api.dto.in.UpdateCandidate dto) {
         service.save(dto.toDomain(id));
-        Candidate candidate = service.findById(id);
-        return api.dto.out.Candidate.fromDomain(candidate);
+        return service.findById(id)
+            .onItem()
+            .transform(c -> api.dto.out.Candidate.fromDomain(c.orElseThrow()));
     }
 
-    public List<api.dto.out.Candidate> list(int page, int size) {
-        List<Candidate> candidates = service.findAll(page, size);
-        return candidates.stream().map(api.dto.out.Candidate::fromDomain).toList();
+    public Uni<List<api.dto.out.Candidate>> list(int page, int size) {
+        Uni<List<Candidate>> candidates = service.findAll(page, size);
+        return candidates.onItem().transform(list -> list
+            .stream()
+            .map(api.dto.out.Candidate::fromDomain)
+            .toList());
     }
 
-    public void delete(String id) {
-        service.delete(id);
+    public Uni<Void> delete(String id) {
+        return service.delete(id);
     }
 
 }
